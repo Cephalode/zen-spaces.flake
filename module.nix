@@ -70,6 +70,7 @@ let
     ] |
     .spaces += [$spaces[] | select(.uuid as $u | $esUuids | index($u) | not)]
     ${lib.optionalString spacesForce "| .spaces = [.spaces[] | select(.uuid as $u | $dsUuids | index($u) != null)]"}
+    | .spaces = (.spaces | sort_by(.position))
   '';
 
   # The session patcher script (built as a derivation so it's in the store)
