@@ -31,7 +31,7 @@ inputs.zen-spaces.url = "github:Cephalode/zen-spaces";
 
   programs.zen-spaces = {
     enable = true;
-    user = "sqibo";
+    user = "cephalode";
 
     spacesForce = true; # delete spaces not declared here
     spaces = {
