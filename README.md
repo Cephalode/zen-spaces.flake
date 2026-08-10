@@ -4,6 +4,8 @@ Declarative Zen Browser **Spaces** and **Containers** for NixOS — **no Home Ma
 
 A pure NixOS module that patches Zen's profile state files (`zen-sessions.jsonlz4` and `containers.json`) via `systemd.user.services` oneshots at login.
 
+I made this because I refuse to use home manager but still want to have a way to declare spaces and containers in Zen.
+
 ## How it works
 
 | Feature | Mechanism |
