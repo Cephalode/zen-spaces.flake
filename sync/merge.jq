@@ -24,7 +24,7 @@ def mergedcol($b; $l; $r; $kf; $sf):
       elif $lv == $rv then $lv
       else $lv end
       | select(. != null)   # deleted on the winning side -> drop
-  ] | sort_by(.[$sf] // 0);
+  ] | sort_by(.[$sf] // 0, .[$kf] // "");
 
 def conflictcol($b; $l; $r; $kf):
   (byid($b; $kf)) as $B | (byid($l; $kf)) as $L | (byid($r; $kf)) as $R |

@@ -11,7 +11,7 @@
   tabs: [
     (.tabs // [])
     | map(select(.pinned == true and .zenIsEmpty != true))
-    | sort_by(.index // 0) | .[]
+    | sort_by(.index // 0, .zenSyncId // "") | .[]
     | { zenSyncId,
         url: (.entries[0].url // null),
         title: ((.entries[0].title // "") | if . == "" then null else . end),
