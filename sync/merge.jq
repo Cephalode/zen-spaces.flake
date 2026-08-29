@@ -14,7 +14,7 @@ def byid($arr; $kf):
   reduce ($arr | .[]?) as $x ({};
     . + { ($x[$kf] | tostring): $x });
 
-def mergedcol($b; $l; $r; $kf):
+def mergedcol($b; $l; $r; $kf; $sf):
   (byid($b; $kf)) as $B | (byid($l; $kf)) as $L | (byid($r; $kf)) as $R |
   [ ($B + $L + $R) | keys[] as $id
       | ($B[$id]) as $bv | ($L[$id]) as $lv | ($R[$id]) as $rv |
@@ -24,7 +24,7 @@ def mergedcol($b; $l; $r; $kf):
       elif $lv == $rv then $lv
       else $lv end
       | select(. != null)   # deleted on the winning side -> drop
-  ] | sort_by(.[$kf] // 0);
+  ] | sort_by(.[$sf] // 0);
 
 def conflictcol($b; $l; $r; $kf):
   (byid($b; $kf)) as $B | (byid($l; $kf)) as $L | (byid($r; $kf)) as $R |
@@ -36,11 +36,11 @@ def conflictcol($b; $l; $r; $kf):
 {
   state: {
     version: 1,
-    containers: mergedcol($base[0].containers; $local[0].containers; .containers; "userContextId"),
-    spaces:    mergedcol($base[0].spaces;       $local[0].spaces;       .spaces;       "uuid"),
-    tabs:      mergedcol($base[0].tabs;          $local[0].tabs;          .tabs;          "zenSyncId"),
-    folders:   mergedcol($base[0].folders;       $local[0].folders;       .folders;       "id"),
-    groups:    mergedcol($base[0].groups;        $local[0].groups;        .groups;        "id")
+    containers: mergedcol($base[0].containers; $local[0].containers; .containers; "userContextId"; "userContextId"),
+    spaces:    mergedcol($base[0].spaces;       $local[0].spaces;       .spaces;       "uuid";   "position"),
+    tabs:      mergedcol($base[0].tabs;          $local[0].tabs;          .tabs;          "zenSyncId"; "index"),
+    folders:   mergedcol($base[0].folders;       $local[0].folders;       .folders;       "id";     "index"),
+    groups:    mergedcol($base[0].groups;        $local[0].groups;        .groups;        "id";     "index")
   },
   conflicts:
     ( [ conflictcol($base[0].containers; $local[0].containers; .containers; "userContextId")[] | "containers:\(.)" ]
