@@ -553,11 +553,58 @@ in {
       }));
       default = {};
     };
+
+    # ─── Bidirectional git sync ───
+
+    sync.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Bidirectional sync via a git repo: the repo's state file
+        (`stateFile`) is the source of truth, and browser edits are
+        projected, 3-way merged, committed and pushed back.
+        Enables zen-sync.service + timer; disables the one-shot
+        declarative services (the reconciler owns the profile files).
+      '';
+    };
+
+    sync.repo = lib.mkOption {
+      type = lib.types.str;
+      description = "Path to the git repo that carries zen-state.json.";
+    };
+
+    sync.stateFile = lib.mkOption {
+      type = lib.types.str;
+      default = "zen-state.json";
+      description = "State file path, relative to sync.repo.";
+    };
+
+    sync.interval = lib.mkOption {
+      type = lib.types.str;
+      default = "5m";
+      description = "Reconcile interval (OnUnitActiveSec).";
+    };
+
+    sync.push = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Push commits to the remote (disable to sync via pull only).";
+    };
+
+    sync.gitName = lib.mkOption {
+      type = lib.types.str;
+      default = "zen-sync";
+    };
+
+    sync.gitEmail = lib.mkOption {
+      type = lib.types.str;
+      default = "zen-sync@cephalode.local";
+    };
   };
 
   config = lib.mkIf cfg.enable {
     # Containers: write containers.json directly (plain JSON, no compression)
-    systemd.user.services.zen-containers = {
+    systemd.user.services.zen-containers = lib.mkIf (!cfg.sync.enable) {
       description = "Zen Browser declarative containers";
       after = [ "default.target" ];
       wantedBy = [ "default.target" ];
@@ -627,7 +674,7 @@ in {
         inherit jqFilterFile;
       };
       fullProfileDir = "${cfg.profileDir}/${cfg.profileName}";
-    in {
+    in lib.mkIf (!cfg.sync.enable) {
       description = "Zen Browser declarative spaces and pins";
       after = [ "default.target" "zen-containers.service" ];
       wantedBy = [ "default.target" ];
@@ -641,6 +688,52 @@ in {
       script = ''
         ${patcher} "${fullProfileDir}"
       '';
+    };
+
+    # ─── Bidirectional git sync (zen-sync) ───
+
+    systemd.user.services.zen-sync = lib.mkIf cfg.sync.enable (let
+      syncDrv = pkgs.symlinkJoin {
+        name = "zen-sync-lib";
+        paths = [ ./sync ];
+      };
+      pathPkgs = with pkgs; [ git jq mozlz4a lsof ];
+    in {
+      description = "Zen Browser bidirectional git sync";
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = false;
+      };
+      unitConfig = {
+        ConditionUser = cfg.user;
+      };
+      environment = {
+        ZEN_SYNC_HOST = config.networking.hostName;
+      };
+      path = pathPkgs;
+      script = ''
+        exec ${pkgs.bash}/bin/bash ${syncDrv}/zen-sync.sh \
+          --repo '${cfg.sync.repo}' \
+          --state-file '${cfg.sync.stateFile}' \
+          --profile '${cfg.profileDir}/${cfg.profileName}' \
+          --libdir '${syncDrv}' \
+          ${lib.optionalString (!cfg.sync.push) "--no-push"} \
+          --git-name '${cfg.sync.gitName}' \
+          --git-mail '${cfg.sync.gitEmail}' \
+          -v
+      '';
+    });
+
+    systemd.user.timers.zen-sync = lib.mkIf cfg.sync.enable {
+      description = "Run zen-sync every ${cfg.sync.interval}";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "2m";
+        OnUnitActiveSec = cfg.sync.interval;
+        Persistent = true;
+      };
     };
   };
 }
